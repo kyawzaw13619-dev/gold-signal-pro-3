@@ -12,8 +12,9 @@
 <meta name="description" content="コちゃんトレード中 — XAUUSD マルチタイムフレーム分析">
 <meta name="format-detection" content="telephone=no">
 <title>コちゃんトレード中</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0e17'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='56'%3E💹%3C/text%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0e17'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='56'%3E💹%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://api.binance.com">
 <style>
@@ -231,7 +232,7 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
   </div>
   <header class="top">
     <div>
-      <div class="brand">💹 <span class="max">コちゃんトレード中</span></div>
+      <div class="brand"><img src="icon-192.png" alt="icon" style="width:36px;height:36px;border-radius:10px;margin-right:6px;vertical-align:middle">💹 <span class="max">コちゃんトレード中</span></div>
       <div class="sub">XAUUSD 参考分析｜Multi-TF Scoring｜Backtest｜Paper</div>
     </div>
     <span class="status-pill" id="connPill"><span class="dot"></span><span id="connection">接続待機</span></span>
@@ -485,18 +486,29 @@ async function loadTf(interval,limit=120){
   return raw.map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));
 }
 
+function beep(type){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(); const g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value=type==="buy"?880:type==="sell"?440:660;
+    g.gain.value=0.08; o.start(); o.stop(ctx.currentTime+0.15);
+  }catch(e){}
+}
+
 async function fetchData(){
   $('refresh').disabled=true;
   $('connection').textContent='取得中…';
   $('connPill').className='status-pill';
   try{
-    const [base,m15,h1,h4]=await Promise.all([
+    const [base,m15,h1,h4,d1]=await Promise.all([
       loadTf(tf,120),
       loadTf('15m',80),
       loadTf('1h',80),
-      loadTf('4h',80)
+      loadTf('4h',80),
+      loadTf('1d',60)
     ]);
-    candles=base; mtf={m15,h1,h4};
+    candles=base; mtf={m15,h1,h4,d1};
     if(candles.length<55)throw Error('ローソク足データ不足');
     analyze();
     $('connection').textContent='LIVE';
@@ -611,6 +623,11 @@ function analyze(){
   const r=scoreCalc(candles,mtf.m15,mtf.h1,mtf.h4);
   const blocked=r.safety.length>0;
   let signal='WAIT';
+  const prevSig = window._prevSig || "";
+  if(signal.includes("BUY") || signal.includes("SELL")){
+    if(signal !== prevSig && signal !== "WATCH") beep(signal.includes("BUY")?"buy":"sell");
+  }
+  window._prevSig = signal;
   if(!blocked){
     if(r.score>=85)signal='STRONG '+r.side;
     else if(r.score>=75)signal=r.side;
