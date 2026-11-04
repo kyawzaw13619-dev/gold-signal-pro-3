@@ -321,17 +321,7 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
     <p class="small" style="margin-top:10px">参考データは PAXG/USDT です。実ブローカーのXAUUSD価格・スプレッド・約定を必ず確認してください。売買推奨ではありません。</p>
   </section>
 
-  <!-- CONTROLS -->
-  <section class="card">
-    <div class="between">
-      <h2>データ取得</h2>
-      <div class="row">
-        <button class="primary" id="refresh">最新データを取得</button>
-        <button id="auto">自動更新 ON</button>
-      </div>
-    </div>
-    <p class="small">Binance公開APIの PAXGUSDT ローソク足を使用。MT5接続不要。ブラウザからAPIに届かない場合は再読み込みしてください。</p>
-  </section>
+  
 
   <!-- BACKTEST -->
   <section class="card">
@@ -406,6 +396,30 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
         <tbody id="historyRows"></tbody>
       </table>
     </div>
+  </section>
+
+  
+  <!-- NOTIFICATIONS -->
+  <section class="card" id="notifSection">
+    <div class="between">
+      <h2>通知</h2>
+      <span class="status-pill" id="notifStatus">待機中</span>
+    </div>
+    <div id="notifList" class="small" style="max-height:160px;overflow-y:auto;line-height:1.6">
+      シグナル変化時にここに表示されます。
+    </div>
+  </section>
+
+  <!-- CONTROLS -->
+  <section class="card">
+    <div class="between">
+      <h2>データ取得</h2>
+      <div class="row">
+        <button class="primary" id="refresh">最新データを取得</button>
+        <button id="auto">自動更新 ON</button>
+      </div>
+    </div>
+    <p class="small">Binance公開APIの PAXGUSDT ローソク足を使用。MT5接続不要。ブラウザからAPIに届かない場合は再読み込みしてください。</p>
   </section>
 
   <footer>
@@ -624,8 +638,23 @@ function analyze(){
   const blocked=r.safety.length>0;
   let signal='WAIT';
   const prevSig = window._prevSig || "";
-  if(signal.includes("BUY") || signal.includes("SELL")){
-    if(signal !== prevSig && signal !== "WATCH") beep(signal.includes("BUY")?"buy":"sell");
+  if(signal.includes("BUY") || signal.includes("SELL") || signal === "WATCH"){
+    if(signal !== prevSig){
+      if(signal.includes("BUY") || signal.includes("SELL")) beep(signal.includes("BUY")?"buy":"sell");
+      // Add to notification
+      const list = $('notifList');
+      if(list){
+        const t = new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+        const div = document.createElement('div');
+        div.style.marginBottom = '6px';
+        div.innerHTML = `<b>${t}</b> シグナル: <b style="color:${signal.includes('BUY')?'var(--green)':signal.includes('SELL')?'var(--red)':'var(--gold)'}">${signal}</b>`;
+        list.insertBefore(div, list.firstChild);
+        // Keep only last 8
+        while(list.children.length > 8) list.removeChild(list.lastChild);
+      }
+      const ns = $('notifStatus');
+      if(ns) ns.textContent = signal;
+    }
   }
   window._prevSig = signal;
   if(!blocked){
