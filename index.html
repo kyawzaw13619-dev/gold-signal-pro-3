@@ -558,17 +558,12 @@ function macd(closes, fast=12, slow=26, signal=9){
   return {macd: macdLine.at(-1), signal: signalLine.at(-1), hist: hist.at(-1)};
 }
 function bollinger(closes, period=20, mult=2){
-  const smaVal = sma(closes, period);
-  const std = [];
-  for(let i=period-1;i<closes.length;i++){
-    const slice = closes.slice(i-period+1, i+1);
-    const mean = smaVal[i];
-    const variance = slice.reduce((a,b)=>a+(b-mean)**2,0)/period;
-    std.push(Math.sqrt(variance));
-  }
+  if(!closes || closes.length < period+5) return {upper:0, mid:0, lower:0, price:closes.at(-1)||0};
   const last = closes.length-1;
-  const mid = smaVal[last];
-  const s = std.at(-1) || 0;
+  const slice = closes.slice(last-period+1, last+1);
+  const mid = slice.reduce((a,b)=>a+b,0)/period;
+  const variance = slice.reduce((a,b)=>a+(b-mid)**2,0)/period;
+  const s = Math.sqrt(variance);
   return {upper: mid + mult*s, mid, lower: mid - mult*s, price: closes[last]};
 }
 function stochastic(cs, k=14, d=3){
