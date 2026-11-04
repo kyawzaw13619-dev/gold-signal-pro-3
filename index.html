@@ -431,6 +431,7 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
       <div class="row">
         <button class="primary" id="refresh">最新データを取得</button>
         <button id="auto">自動更新 ON</button>
+        <button id="testSound" style="margin-left:6px">音テスト</button>
       </div>
     </div>
     <p class="small">Binance公開APIの PAXGUSDT ローソク足を使用。MT5接続不要。ブラウザからAPIに届かない場合は再読み込みしてください。</p>
@@ -514,15 +515,29 @@ async function loadTf(interval,limit=120){
   return raw.map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));
 }
 
+let audioCtx = null;
+function unlockAudio(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+}
 function beep(type){
   try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const o=ctx.createOscillator(); const g=ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value=type==="buy"?880:type==="sell"?440:660;
-    g.gain.value=0.08; o.start(); o.stop(ctx.currentTime+0.15);
+    unlockAudio();
+    if(!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value = type==="buy" ? 880 : type==="sell" ? 440 : 660;
+    g.gain.value = 0.12;
+    o.start();
+    o.stop(audioCtx.currentTime + 0.18);
   }catch(e){}
 }
+// Unlock on first touch
+document.addEventListener('touchstart', unlockAudio, {once:true});
+document.addEventListener('click', unlockAudio, {once:true});
 
 async function fetchData(){
   $('refresh').disabled=true;
@@ -1107,6 +1122,8 @@ function renderHistory(){
 
 /* ===== Events ===== */
 $('refresh').onclick=fetchData;
+$('testSound').onclick = () => { beep('buy'); toast('通知音テスト'); };
+
 $('runBacktest').onclick=runBacktest;
 document.querySelectorAll('[data-tf]').forEach(b=>{
   b.onclick=()=>{
