@@ -285,6 +285,8 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
       <div class="metric"><span>EMA50</span><b id="ema50">--</b></div>
       <div class="metric"><span>出来高比</span><b id="volRatio">--</b></div>
       <div class="metric"><span>トレンド強度</span><b id="trendStrength">--</b></div>
+      <div class="metric"><span>レジスタンス</span><b id="resistance">--</b></div>
+      <div class="metric"><span>サポート</span><b id="support">--</b></div>
     </div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
     <div class="chart-legend">
@@ -902,6 +904,19 @@ function analyze(){
   const strength = Math.min(100, Math.abs(r.up - r.dn) + r.score * 0.3);
   const strEl = $('trendStrength');
   if(strEl) strEl.textContent = Math.round(strength) + ' / 100';
+  // Support & Resistance (recent swing)
+  if(candles.length >= 30){
+    const recent = candles.slice(-40);
+    const highs = recent.map(c => c.h);
+    const lows = recent.map(c => c.l);
+    const res = Math.max(...highs.slice(0, -3)); // exclude last few
+    const sup = Math.min(...lows.slice(0, -3));
+    const resEl = $('resistance');
+    const supEl = $('support');
+    if(resEl) resEl.textContent = res.toFixed(2);
+    if(supEl) supEl.textContent = sup.toFixed(2);
+  }
+
 
 
   // Alert on signal change
