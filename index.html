@@ -299,12 +299,19 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
     </div>
   </section>
 
+  
+  <!-- AI ANALYSIS -->
+  <section class="card">
+    <h2>AI分析コメント</h2>
+    <div id="aiComment" class="small" style="line-height:1.7">分析中…</div>
+  </section>
+
   <!-- SCORE BREAKDOWN -->
   <section class="card">
-    <h2>スコア内訳（100点）</h2>
+    <h2>スコア内訳（強化版）</h2>
     <div id="breakdown"></div>
     <div class="meter"><i id="meter"></i></div>
-    <div class="small">75点以上でBUY/SELL候補。60〜74はWATCH。安全フィルター該当時はスコアに関係なくWAIT。</div>
+    <div class="small">75点以上でBUY/SELL候補。60〜74はWATCH。MACD/BB/Stoch追加で精度向上。安全フィルター該当時はスコアに関係なくWAIT。</div>
   </section>
 
   <!-- ENTRY -->
@@ -538,6 +545,42 @@ async function fetchData(){
   }
 }
 
+
+function macd(closes, fast=12, slow=26, signal=9){
+  const emaFast = ema(closes, fast);
+  const emaSlow = ema(closes, slow);
+  const macdLine = emaFast.map((v,i)=>v - emaSlow[i]);
+  const signalLine = ema(macdLine, signal);
+  const hist = macdLine.map((v,i)=>v - signalLine[i]);
+  return {macd: macdLine.at(-1), signal: signalLine.at(-1), hist: hist.at(-1)};
+}
+function bollinger(closes, period=20, mult=2){
+  const smaVal = sma(closes, period);
+  const std = [];
+  for(let i=period-1;i<closes.length;i++){
+    const slice = closes.slice(i-period+1, i+1);
+    const mean = smaVal[i];
+    const variance = slice.reduce((a,b)=>a+(b-mean)**2,0)/period;
+    std.push(Math.sqrt(variance));
+  }
+  const last = closes.length-1;
+  const mid = smaVal[last];
+  const s = std.at(-1) || 0;
+  return {upper: mid + mult*s, mid, lower: mid - mult*s, price: closes[last]};
+}
+function stochastic(cs, k=14, d=3){
+  const highs = cs.map(x=>x.h), lows = cs.map(x=>x.l), closes = cs.map(x=>x.c);
+  const stochK = [];
+  for(let i=k-1;i<cs.length;i++){
+    const hh = Math.max(...highs.slice(i-k+1,i+1));
+    const ll = Math.min(...lows.slice(i-k+1,i+1));
+    const c = closes[i];
+    stochK.push(hh===ll?50:(c-ll)/(hh-ll)*100);
+  }
+  const stochD = sma(stochK, d);
+  return {k: stochK.at(-1), d: stochD.at(-1)};
+}
+
 /* ===== Scoring Engine ===== */
 function scoreCalc(cs,m15,h1,h4){
   const closes=cs.map(x=>x.c);
@@ -599,7 +642,7 @@ function scoreCalc(cs,m15,h1,h4){
   // volume supports both sides equally as confirmation
   add('出来高確認',volPts/2,volPts/2,10,volWhy);
 
-  // 7. Candle structure last bar (10)
+  // 7. Candle structure (10)
   const last=cs.at(-1), prev=cs.at(-2);
   const body=Math.abs(last.c-last.o);
   const range=last.h-last.l||1e-9;
@@ -613,6 +656,33 @@ function scoreCalc(cs,m15,h1,h4){
     else{strDn=5;strWhy='中陰線'}
   }
   add('ローソク構造',strUp,strDn,10,strWhy);
+
+  // 8. MACD (12)
+  const m = macd(closes);
+  let macdUp=0, macdDn=0, macdWhy='MACD中立';
+  if(m.hist > 0 && m.macd > m.signal){macdUp=12; macdWhy='MACD強気クロス'}
+  else if(m.hist < 0 && m.macd < m.signal){macdDn=12; macdWhy='MACD弱気クロス'}
+  else if(m.hist > 0){macdUp=6; macdWhy='MACDヒストグラム陽転'}
+  else if(m.hist < 0){macdDn=6; macdWhy='MACDヒストグラム陰転'}
+  add('MACD',macdUp,macdDn,12,macdWhy);
+
+  // 9. Bollinger (8)
+  const bb = bollinger(closes);
+  let bbUp=0, bbDn=0, bbWhy='BB中間';
+  if(bb.price < bb.lower){bbUp=8; bbWhy='BB下限タッチ（反発期待）'}
+  else if(bb.price > bb.upper){bbDn=8; bbWhy='BB上限タッチ（反落注意）'}
+  else if(bb.price > bb.mid){bbUp=4; bbWhy='BB中間上'}
+  else{bbDn=4; bbWhy='BB中間下'}
+  add('Bollinger',bbUp,bbDn,8,bbWhy);
+
+  // 10. Stochastic (8)
+  const st = stochastic(cs);
+  let stUp=0, stDn=0, stWhy='Stoch中立';
+  if(st.k < 20 && st.k > st.d){stUp=8; stWhy='Stoch売られすぎから反発'}
+  else if(st.k > 80 && st.k < st.d){stDn=8; stWhy='Stoch買われすぎから反落'}
+  else if(st.k > st.d && st.k < 70){stUp=4; stWhy='Stoch上昇中'}
+  else if(st.k < st.d && st.k > 30){stDn=4; stWhy='Stoch下降中'}
+  add('Stochastic',stUp,stDn,8,stWhy);
 
   // Safety filters
   if(t15==='不明'||t1==='不明')safety.push('上位足データ不足');
@@ -635,6 +705,17 @@ function scoreCalc(cs,m15,h1,h4){
 function analyze(){
   if(!candles.length)return;
   const r=scoreCalc(candles,mtf.m15,mtf.h1,mtf.h4);
+  // AI-style summary
+  const ai = $('aiComment');
+  if(ai){
+    let comment = '';
+    if(r.score >= 80 && r.safety.length === 0) comment = '強いコンフルエンス。上位足と下位足が揃っています。チャンスを逃さないよう注意。';
+    else if(r.score >= 70) comment = '良好なセットアップ。MACDとRSIが支持しています。';
+    else if(r.score >= 60) comment = '様子見推奨。追加確認が必要です。';
+    else comment = '明確な方向性が出ていません。無理にエントリーしない方が無難です。';
+    if(r.safety.length) comment += ' 注意: ' + r.safety.join(' / ');
+    ai.textContent = comment;
+  }
   const blocked=r.safety.length>0;
   let signal='WAIT';
   const prevSig = window._prevSig || "";
