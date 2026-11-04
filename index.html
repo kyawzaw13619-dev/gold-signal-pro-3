@@ -2,15 +2,19 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#0a0e17">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="コちゃんトレード中 — XAUUSD マルチタイムフレーム分析">
-<title>コちゃんトレード中</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💹%3C/text%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0e17'/%3E%3Ctext x='50' y='62' text-anchor='middle' font-size='52'%3E💹%3C/text%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-title" content="コちゃんトレード中">
+<meta name="application-name" content="コちゃんトレード中">
+<meta name="description" content="コちゃんトレード中 — XAUUSD マルチタイムフレーム分析">
+<meta name="format-detection" content="telephone=no">
+<title>コちゃんトレード中</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0e17'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='56'%3E💹%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0e17'/%3E%3Ctext x='50' y='68' text-anchor='middle' font-size='56'%3E💹%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://api.binance.com">
 <style>
 :root{
@@ -191,6 +195,20 @@ td button{padding:5px 8px;font-size:11px;margin:1px}
 footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.6;padding:16px 8px 0}
 .small{color:var(--muted);font-size:12px;line-height:1.55}
 .big{font-size:1.4rem;font-weight:800}
+
+/* Install tip */
+.install-tip{
+  display:none;align-items:flex-start;gap:10px;
+  background:linear-gradient(135deg,rgba(240,193,75,.14),rgba(240,193,75,.05));
+  border:1px solid rgba(240,193,75,.35);border-radius:14px;
+  padding:12px 14px;margin-bottom:12px;font-size:13px;line-height:1.5
+}
+.install-tip.show{display:flex}
+.install-tip b{color:var(--gold)}
+.install-tip button{margin-left:auto;flex-shrink:0;padding:6px 10px;font-size:12px}
+/* Standalone: extra safe area top */
+html.standalone body{padding-top:env(safe-area-inset-top)}
+
 /* Toast */
 #toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120%);
@@ -207,6 +225,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.6;paddi
 </head>
 <body>
 <main>
+  <div class="install-tip" id="installTip">
+    <div>📱 <b>アプリ化</b>：共有ボタン → 「ホーム画面に追加」でブラウザ枠なし全画面表示になります。</div>
+    <button type="button" id="dismissTip">閉じる</button>
+  </div>
   <header class="top">
     <div>
       <div class="brand">💹 <span class="max">コちゃんトレード中</span></div>
@@ -942,6 +964,24 @@ fetchData();
 // 自動更新 ON（起動時）
 autoTimer = setInterval(fetchData, 60000);
 $('auto').textContent = '自動更新 ON';
+
+// スタンドアロン（ホーム画面）判定：ブラウザUIを意識させない
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
+if(isStandalone){
+  document.documentElement.classList.add('standalone');
+  const tip=$('installTip'); if(tip) tip.style.display='none';
+}else{
+  // 一度閉じたら再表示しない
+  if(!localStorage.getItem('kochan-tip-dismissed')){
+    const tip=$('installTip'); if(tip) tip.classList.add('show');
+  }
+}
+const dt=$('dismissTip');
+if(dt) dt.onclick=()=>{
+  localStorage.setItem('kochan-tip-dismissed','1');
+  const tip=$('installTip'); if(tip) tip.classList.remove('show');
+};
 </script>
 </body>
 </html>
