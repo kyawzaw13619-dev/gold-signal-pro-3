@@ -580,8 +580,13 @@ function stochastic(cs, k=14, d=3){
     const c = closes[i];
     stochK.push(hh===ll?50:(c-ll)/(hh-ll)*100);
   }
-  const stochD = sma(stochK, d);
-  return {k: stochK.at(-1), d: stochD.at(-1)};
+  const lastK = stochK.at(-1) || 50;
+  let stochD = lastK;
+  if(stochK.length >= d){
+    const slice = stochK.slice(-d);
+    stochD = slice.reduce((a,b)=>a+b,0)/d;
+  }
+  return {k: lastK, d: stochD};
 }
 
 /* ===== Scoring Engine ===== */
