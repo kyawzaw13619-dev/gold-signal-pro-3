@@ -6,8 +6,11 @@
 <meta name="theme-color" content="#0a0e17">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="description" content="Gold Signal Pro MAX — XAUUSD マルチタイムフレーム分析・スコアリング・リスク・バックテスト">
-<title>Gold Signal Pro MAX</title>
+<meta name="description" content="コちゃんトレード中 — XAUUSD マルチタイムフレーム分析">
+<title>コちゃんトレード中</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💹%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0e17'/%3E%3Ctext x='50' y='62' text-anchor='middle' font-size='52'%3E💹%3C/text%3E%3C/svg%3E">
+<meta name="apple-mobile-web-app-title" content="コちゃんトレード中">
 <link rel="preconnect" href="https://api.binance.com">
 <style>
 :root{
@@ -206,8 +209,8 @@ footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.6;paddi
 <main>
   <header class="top">
     <div>
-      <div class="brand">◈ GOLD SIGNAL <span class="max">PRO MAX</span></div>
-      <div class="sub">XAUUSD 参考分析｜Multi-TF Scoring｜Risk｜Backtest｜Paper</div>
+      <div class="brand">💹 <span class="max">コちゃんトレード中</span></div>
+      <div class="sub">XAUUSD 参考分析｜Multi-TF Scoring｜Backtest｜Paper</div>
     </div>
     <span class="status-pill" id="connPill"><span class="dot"></span><span id="connection">接続待機</span></span>
   </header>
@@ -301,30 +304,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.6;paddi
       <h2>データ取得</h2>
       <div class="row">
         <button class="primary" id="refresh">最新データを取得</button>
-        <button id="auto">自動更新 OFF</button>
+        <button id="auto">自動更新 ON</button>
       </div>
     </div>
     <p class="small">Binance公開APIの PAXGUSDT ローソク足を使用。MT5接続不要。ブラウザからAPIに届かない場合は再読み込みしてください。</p>
-  </section>
-
-  <!-- RISK -->
-  <section class="card">
-    <div class="section-tag">RISK MANAGEMENT</div>
-    <h2>ポジションサイズ計算</h2>
-    <div class="fields">
-      <label>口座残高（USD）<input id="balance" type="number" value="1000" min="0" step="any"></label>
-      <label>許容リスク（%）<input id="riskPct" type="number" value="1" min="0.1" max="10" step="0.1"></label>
-      <label>スプレッド（価格幅）<input id="spread" type="number" value="0.30" min="0" step="0.01"></label>
-      <label>1ロット契約単位<input id="contract" type="number" value="100" min="1" step="1"></label>
-      <label>ロット刻み<input id="lotStep" type="number" value="0.01" min="0.001" step="0.001"></label>
-      <label>最小ロット<input id="minLot" type="number" value="0.01" min="0.001" step="0.001"></label>
-    </div>
-    <div class="metrics">
-      <div class="metric"><span>推奨ロット</span><b id="lotOut">--</b></div>
-      <div class="metric"><span>想定損失（USD）</span><b id="riskUsd">--</b></div>
-      <div class="metric"><span>リスク後残高</span><b id="balAfter">--</b></div>
-    </div>
-    <div class="row" style="margin-top:10px"><button id="calcRisk" class="primary">ロット再計算</button></div>
   </section>
 
   <!-- BACKTEST -->
@@ -403,7 +386,7 @@ footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.6;paddi
   </section>
 
   <footer>
-    Gold Signal Pro MAX ｜ 分析支援ツール。投資判断はご自身の責任で行ってください。<br>
+    コちゃんトレード中 ｜ 分析支援ツール。投資判断はご自身の責任で行ってください。<br>
     初回は必ずデモ口座・最小リスクで検証してください。シグナルは利益を保証しません。
   </footer>
 </main>
@@ -690,7 +673,6 @@ function analyze(){
   setStore('gsp-max-history',history);
   renderHistory();
   drawChart();
-  calcRisk();
 }
 
 /* ===== Chart ===== */
@@ -792,28 +774,6 @@ function drawEquity(trades){
   ctx.strokeStyle='#2ee59d'; ctx.lineWidth=2; ctx.beginPath();
   eq.forEach((v,i)=>{const xx=i*step; i?ctx.lineTo(xx,y(v)):ctx.moveTo(xx,y(v))});
   ctx.stroke();
-}
-
-/* ===== Risk ===== */
-function calcRisk(){
-  if(!latest||!Number.isFinite(latest.slD)){
-    $('lotOut').textContent='--';$('riskUsd').textContent='--';$('balAfter').textContent='--';
-    return;
-  }
-  const bal=+$('balance').value||0;
-  const pct=+$('riskPct').value||1;
-  const spread=+$('spread').value||0;
-  const contract=+$('contract').value||100;
-  const step=+$('lotStep').value||0.01;
-  const minLot=+$('minLot').value||0.01;
-  const riskUsd=bal*(pct/100);
-  const dist=latest.slD+spread;
-  let lot=dist>0?riskUsd/(dist*contract):0;
-  lot=Math.max(minLot,Math.floor(lot/step)*step);
-  const actualRisk=lot*dist*contract;
-  $('lotOut').textContent=lot.toFixed(2);
-  $('riskUsd').textContent=fmt(actualRisk);
-  $('balAfter').textContent=fmt(bal-actualRisk);
 }
 
 /* ===== Backtest ===== */
@@ -920,10 +880,7 @@ function renderHistory(){
 
 /* ===== Events ===== */
 $('refresh').onclick=fetchData;
-$('calcRisk').onclick=calcRisk;
 $('runBacktest').onclick=runBacktest;
-['balance','riskPct','spread','contract','lotStep','minLot'].forEach(id=>$(id).addEventListener('input',calcRisk));
-
 document.querySelectorAll('[data-tf]').forEach(b=>{
   b.onclick=()=>{
     tf=b.dataset.tf;
@@ -971,7 +928,7 @@ $('export').onclick=()=>{
   const csv='\ufeff'+rows.map(r=>r.join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='gold-signal-pro-max-paper.csv';
+  a.download='kochan-trade-paper.csv';
   a.click(); URL.revokeObjectURL(a.href);
   toast('CSVを保存しました');
 };
@@ -982,6 +939,9 @@ renderPaper();
 renderHistory();
 drawEquity([]);
 fetchData();
+// 自動更新 ON（起動時）
+autoTimer = setInterval(fetchData, 60000);
+$('auto').textContent = '自動更新 ON';
 </script>
 </body>
 </html>
