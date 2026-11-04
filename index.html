@@ -587,14 +587,6 @@ function stochastic(cs, k=14, d=3){
   }
   return {k: lastK, d: stochD};
 }
-  const lastK = stochK.at(-1) || 50;
-  let stochD = lastK;
-  if(stochK.length >= d){
-    const slice = stochK.slice(-d);
-    stochD = slice.reduce((a,b)=>a+b,0)/d;
-  }
-  return {k: lastK, d: stochD};
-}
 
 /* ===== Scoring Engine ===== */
 function scoreCalc(cs,m15,h1,h4){
