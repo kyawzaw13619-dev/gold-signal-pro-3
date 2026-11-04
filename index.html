@@ -572,14 +572,26 @@ function bollinger(closes, period=20, mult=2){
   return {upper: mid + mult*s, mid, lower: mid - mult*s, price: closes[last]};
 }
 function stochastic(cs, k=14, d=3){
+  if(!cs || cs.length < k+5) return {k:50, d:50};
   const highs = cs.map(x=>x.h), lows = cs.map(x=>x.l), closes = cs.map(x=>x.c);
   const stochK = [];
   for(let i=k-1;i<cs.length;i++){
-    const hh = Math.max(...highs.slice(i-k+1,i+1));
-    const ll = Math.min(...lows.slice(i-k+1,i+1));
+    const sliceH = highs.slice(Math.max(0,i-k+1), i+1);
+    const sliceL = lows.slice(Math.max(0,i-k+1), i+1);
+    const hh = Math.max(...sliceH);
+    const ll = Math.min(...sliceL);
     const c = closes[i];
-    stochK.push(hh===ll?50:(c-ll)/(hh-ll)*100);
+    stochK.push(hh===ll ? 50 : ((c-ll)/(hh-ll))*100);
   }
+  const lastK = stochK.length ? stochK[stochK.length-1] : 50;
+  let stochD = lastK;
+  if(stochK.length >= d){
+    let sum = 0;
+    for(let j=stochK.length-d; j<stochK.length; j++) sum += stochK[j];
+    stochD = sum / d;
+  }
+  return {k: lastK, d: stochD};
+}
   const lastK = stochK.at(-1) || 50;
   let stochD = lastK;
   if(stochK.length >= d){
