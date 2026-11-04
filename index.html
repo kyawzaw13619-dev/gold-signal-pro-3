@@ -256,10 +256,16 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
     </div>
   </section>
 
+  <!-- AI ANALYSIS -->
+  <section class="card">
+    <h2>AI統合分析（神レベル）</h2>
+    <div id="aiComment" class="small" style="line-height:1.7">分析中…</div>
+  </section>
+
   <!-- MARKET DATA -->
   <section class="card">
     <div class="between">
-      <h2>市場データ</h2>
+      <h2>市場データ（強化）</h2>
       <div class="row tabs" id="tfTabs">
         <button data-tf="5m" class="active">M5</button>
         <button data-tf="15m">M15</button>
@@ -272,11 +278,13 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
     </div>
     <div class="metrics" style="margin-bottom:12px">
       <div class="metric"><span>参考価格 PAXG/USDT</span><b id="price">--</b></div>
+      <div class="metric"><span>24h変化</span><b id="change24">--</b></div>
       <div class="metric"><span>RSI (9)</span><b id="rsi">--</b></div>
       <div class="metric"><span>ATR (14)</span><b id="atr">--</b></div>
       <div class="metric"><span>EMA20</span><b id="ema20">--</b></div>
       <div class="metric"><span>EMA50</span><b id="ema50">--</b></div>
       <div class="metric"><span>出来高比</span><b id="volRatio">--</b></div>
+      <div class="metric"><span>トレンド強度</span><b id="trendStrength">--</b></div>
     </div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
     <div class="chart-legend">
@@ -301,11 +309,7 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
   </section>
 
   
-  <!-- AI ANALYSIS -->
-  <section class="card">
-    <h2>AI分析コメント</h2>
-    <div id="aiComment" class="small" style="line-height:1.7">分析中…</div>
-  </section>
+  
 
   <!-- SCORE BREAKDOWN -->
   <section class="card">
@@ -718,16 +722,46 @@ function scoreCalc(cs,m15,h1,h4){
 function analyze(){
   if(!candles.length)return;
   const r=scoreCalc(candles,mtf.m15,mtf.h1,mtf.h4);
-  // AI-style summary
+  // AI-style summary (神レベル統合分析)
   const ai = $('aiComment');
   if(ai){
-    let comment = '';
-    if(r.score >= 80 && r.safety.length === 0) comment = '強いコンフルエンス。上位足と下位足が揃っています。チャンスを逃さないよう注意。';
-    else if(r.score >= 70) comment = '良好なセットアップ。MACDとRSIが支持しています。';
-    else if(r.score >= 60) comment = '様子見推奨。追加確認が必要です。';
-    else comment = '明確な方向性が出ていません。無理にエントリーしない方が無難です。';
-    if(r.safety.length) comment += ' 注意: ' + r.safety.join(' / ');
-    ai.textContent = comment;
+    const lines = [];
+    // 総合判定
+    let grade = '見送り';
+    let confidence = '低';
+    if(r.score >= 88 && r.safety.length === 0){ grade = '強いエントリー候補'; confidence = '高'; }
+    else if(r.score >= 78 && r.safety.length === 0){ grade = 'エントリー検討'; confidence = '中高'; }
+    else if(r.score >= 65){ grade = '様子見'; confidence = '中'; }
+    else { grade = '見送り推奨'; confidence = '低'; }
+
+    lines.push(`<b>総合判定：${grade}</b>（信頼度：${confidence}）`);
+
+    // トレンド構造
+    const trendAlign = (r.t4 === r.t1 && (r.t4 === '上昇' || r.t4 === '下降'));
+    lines.push(trendAlign ? '• 上位足（H4/H1）が揃っている' : '• 上位足の方向が不一致');
+
+    // モメンタム詳細
+    if(r.rv >= 50 && r.rv <= 68) lines.push('• RSIは健全な勢いゾーン');
+    else if(r.rv > 75) lines.push('• RSI過熱気味（押し目待ち推奨）');
+    else if(r.rv < 30) lines.push('• RSI売られすぎ（反発待ち）');
+
+    // リスク評価
+    if(r.safety.length === 0) lines.push('• 安全フィルター：クリア');
+    else lines.push('• 注意：' + r.safety.join(' / '));
+
+    // セッション適性
+    const hour = new Date().getUTCHours();
+    if((hour >= 8 && hour < 16) || (hour >= 13 && hour < 21)) lines.push('• 流動性の高い時間帯');
+    else lines.push('• アジア時間帯（ボラ注意）');
+
+    // 最終アドバイス
+    if(grade.includes('強い') || grade.includes('エントリー')){
+      lines.push('<b>→ チャンスを逃さないよう監視推奨</b>');
+    } else {
+      lines.push('<b>→ 無理なエントリーは避ける</b>');
+    }
+
+    ai.innerHTML = lines.join('<br>');
   }
   const blocked=r.safety.length>0;
   let signal='WAIT';
@@ -835,6 +869,20 @@ function analyze(){
         ?`WATCH帯（${r.score}点）。追加確認が必要。`
         :`スコア不足（${r.score}点）。様子見。`;
   $('explain').textContent=exp;
+  // Extra market data
+  if(candles.length > 24){
+    const c24 = candles[candles.length-25]?.c || r.price;
+    const chg = ((r.price - c24) / c24 * 100);
+    const chgEl = $('change24');
+    if(chgEl){
+      chgEl.textContent = (chg>=0?'+':'') + chg.toFixed(2) + '%';
+      chgEl.style.color = chg>=0 ? 'var(--green)' : 'var(--red)';
+    }
+  }
+  const strength = Math.min(100, Math.abs(r.up - r.dn) + r.score * 0.3);
+  const strEl = $('trendStrength');
+  if(strEl) strEl.textContent = Math.round(strength) + ' / 100';
+
 
   // Alert on signal change
   const key=signal+'|'+r.score;
