@@ -258,7 +258,7 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
 
   <!-- AI ANALYSIS -->
   <section class="card">
-    <h2>AI統合分析（神レベル）</h2>
+    <h2>AI統合分析（神レベル+）</h2>
     <div id="aiComment" class="small" style="line-height:1.7">分析中…</div>
   </section>
 
@@ -737,44 +737,49 @@ function scoreCalc(cs,m15,h1,h4){
 function analyze(){
   if(!candles.length)return;
   const r=scoreCalc(candles,mtf.m15,mtf.h1,mtf.h4);
-  // AI-style summary (神レベル統合分析)
+  // AI-style summary (神レベル+ 統合分析)
   const ai = $('aiComment');
   if(ai){
     const lines = [];
-    // 総合判定
+    // 総合判定（より厳格）
     let grade = '見送り';
     let confidence = '低';
-    if(r.score >= 88 && r.safety.length === 0){ grade = '強いエントリー候補'; confidence = '高'; }
-    else if(r.score >= 78 && r.safety.length === 0){ grade = 'エントリー検討'; confidence = '中高'; }
-    else if(r.score >= 65){ grade = '様子見'; confidence = '中'; }
-    else { grade = '見送り推奨'; confidence = '低'; }
-
-    lines.push(`<b>総合判定：${grade}</b>（信頼度：${confidence}）`);
-
-    // トレンド構造
-    const trendAlign = (r.t4 === r.t1 && (r.t4 === '上昇' || r.t4 === '下降'));
-    lines.push(trendAlign ? '• 上位足（H4/H1）が揃っている' : '• 上位足の方向が不一致');
-
-    // モメンタム詳細
-    if(r.rv >= 50 && r.rv <= 68) lines.push('• RSIは健全な勢いゾーン');
-    else if(r.rv > 75) lines.push('• RSI過熱気味（押し目待ち推奨）');
-    else if(r.rv < 30) lines.push('• RSI売られすぎ（反発待ち）');
-
-    // リスク評価
-    if(r.safety.length === 0) lines.push('• 安全フィルター：クリア');
-    else lines.push('• 注意：' + r.safety.join(' / '));
-
-    // セッション適性
-    const hour = new Date().getUTCHours();
-    if((hour >= 8 && hour < 16) || (hour >= 13 && hour < 21)) lines.push('• 流動性の高い時間帯');
-    else lines.push('• アジア時間帯（ボラ注意）');
-
-    // 最終アドバイス
-    if(grade.includes('強い') || grade.includes('エントリー')){
-      lines.push('<b>→ チャンスを逃さないよう監視推奨</b>');
-    } else {
-      lines.push('<b>→ 無理なエントリーは避ける</b>');
+    let action = '待機';
+    if(r.score >= 90 && r.safety.length === 0 && r.t4 === r.t1){ 
+      grade = '神エントリー'; confidence = '最高'; action = '積極監視';
+    } else if(r.score >= 82 && r.safety.length === 0){ 
+      grade = '強い候補'; confidence = '高'; action = '監視推奨';
+    } else if(r.score >= 72){ 
+      grade = '検討可'; confidence = '中'; action = '確認後判断';
+    } else if(r.score >= 60){ 
+      grade = '様子見'; confidence = '中低'; action = '追加確認';
+    } else { 
+      grade = '見送り'; confidence = '低'; action = 'エントリー禁止';
     }
+
+    lines.push(`<b style="font-size:1.05em">総合判定：${grade}</b>`);
+    lines.push(`信頼度：${confidence}　｜　推奨行動：${action}`);
+
+    // 構造分析
+    const trendAlign = (r.t4 === r.t1 && (r.t4 === '上昇' || r.t4 === '下降'));
+    lines.push(trendAlign ? '• 上位足完全一致（強いトレンド）' : '• 上位足不一致（慎重）');
+
+    // モメンタム＋出来高
+    if(r.rv >= 52 && r.rv <= 68 && r.volR >= 1.0) lines.push('• モメンタム＋出来高が支持');
+    else if(r.rv > 75) lines.push('• RSI過熱（押し目待ち）');
+    else if(r.rv < 28) lines.push('• RSI売られすぎ（反発待ち）');
+
+    // リスク
+    lines.push(r.safety.length === 0 ? '• 安全フィルター：完全クリア' : '• 警告：' + r.safety.join(' / '));
+
+    // セッション
+    const hour = new Date().getUTCHours();
+    if(hour >= 8 && hour < 16) lines.push('• ロンドン時間（高流動性）');
+    else if(hour >= 13 && hour < 21) lines.push('• NY時間（高ボラ）');
+    else lines.push('• アジア時間（慎重モード）');
+
+    // 最終
+    lines.push(`<b>→ ${action}</b>`);
 
     ai.innerHTML = lines.join('<br>');
   }
