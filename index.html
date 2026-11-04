@@ -1074,9 +1074,9 @@ $('auto').onclick=()=>{
     $('auto').textContent='自動更新 OFF';
     toast('自動更新を停止');
   }else{
-    autoTimer=setInterval(fetchData,60000);
+    autoTimer=setInterval(fetchData,1000);
     $('auto').textContent='自動更新 ON';
-    toast('60秒ごとに自動更新');
+    toast('1秒ごとに自動更新');
   }
 };
 
@@ -1119,7 +1119,7 @@ renderHistory();
 drawEquity([]);
 fetchData();
 // 自動更新 ON（起動時）
-autoTimer = setInterval(fetchData, 60000);
+autoTimer = setInterval(fetchData, 1000);
 $('auto').textContent = '自動更新 ON';
 
 // スタンドアロン（ホーム画面）判定：ブラウザUIを意識させない
