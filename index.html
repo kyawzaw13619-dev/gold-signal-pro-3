@@ -665,31 +665,37 @@ function scoreCalc(cs,m15,h1,h4){
   add('ローソク構造',strUp,strDn,10,strWhy);
 
   // 8. MACD (12)
-  const m = macd(closes);
-  let macdUp=0, macdDn=0, macdWhy='MACD中立';
-  if(m.hist > 0 && m.macd > m.signal){macdUp=12; macdWhy='MACD強気クロス'}
-  else if(m.hist < 0 && m.macd < m.signal){macdDn=12; macdWhy='MACD弱気クロス'}
-  else if(m.hist > 0){macdUp=6; macdWhy='MACDヒストグラム陽転'}
-  else if(m.hist < 0){macdDn=6; macdWhy='MACDヒストグラム陰転'}
-  add('MACD',macdUp,macdDn,12,macdWhy);
+  try {
+    const m = macd(closes);
+    let macdUp=0, macdDn=0, macdWhy='MACD中立';
+    if(m && m.hist > 0 && m.macd > m.signal){macdUp=12; macdWhy='MACD強気クロス'}
+    else if(m && m.hist < 0 && m.macd < m.signal){macdDn=12; macdWhy='MACD弱気クロス'}
+    else if(m && m.hist > 0){macdUp=6; macdWhy='MACDヒストグラム陽転'}
+    else if(m && m.hist < 0){macdDn=6; macdWhy='MACDヒストグラム陰転'}
+    add('MACD',macdUp,macdDn,12,macdWhy);
+  } catch(e) { add('MACD',0,0,12,'計算エラー'); }
 
   // 9. Bollinger (8)
-  const bb = bollinger(closes);
-  let bbUp=0, bbDn=0, bbWhy='BB中間';
-  if(bb.price < bb.lower){bbUp=8; bbWhy='BB下限タッチ（反発期待）'}
-  else if(bb.price > bb.upper){bbDn=8; bbWhy='BB上限タッチ（反落注意）'}
-  else if(bb.price > bb.mid){bbUp=4; bbWhy='BB中間上'}
-  else{bbDn=4; bbWhy='BB中間下'}
-  add('Bollinger',bbUp,bbDn,8,bbWhy);
+  try {
+    const bb = bollinger(closes);
+    let bbUp=0, bbDn=0, bbWhy='BB中間';
+    if(bb && bb.price < bb.lower){bbUp=8; bbWhy='BB下限タッチ（反発期待）'}
+    else if(bb && bb.price > bb.upper){bbDn=8; bbWhy='BB上限タッチ（反落注意）'}
+    else if(bb && bb.price > bb.mid){bbUp=4; bbWhy='BB中間上'}
+    else if(bb){bbDn=4; bbWhy='BB中間下'}
+    add('Bollinger',bbUp,bbDn,8,bbWhy);
+  } catch(e) { add('Bollinger',0,0,8,'計算エラー'); }
 
   // 10. Stochastic (8)
-  const st = stochastic(cs);
-  let stUp=0, stDn=0, stWhy='Stoch中立';
-  if(st.k < 20 && st.k > st.d){stUp=8; stWhy='Stoch売られすぎから反発'}
-  else if(st.k > 80 && st.k < st.d){stDn=8; stWhy='Stoch買われすぎから反落'}
-  else if(st.k > st.d && st.k < 70){stUp=4; stWhy='Stoch上昇中'}
-  else if(st.k < st.d && st.k > 30){stDn=4; stWhy='Stoch下降中'}
-  add('Stochastic',stUp,stDn,8,stWhy);
+  try {
+    const st = stochastic(cs);
+    let stUp=0, stDn=0, stWhy='Stoch中立';
+    if(st && st.k < 20 && st.k > st.d){stUp=8; stWhy='Stoch売られすぎから反発'}
+    else if(st && st.k > 80 && st.k < st.d){stDn=8; stWhy='Stoch買われすぎから反落'}
+    else if(st && st.k > st.d && st.k < 70){stUp=4; stWhy='Stoch上昇中'}
+    else if(st && st.k < st.d && st.k > 30){stDn=4; stWhy='Stoch下降中'}
+    add('Stochastic',stUp,stDn,8,stWhy);
+  } catch(e) { add('Stochastic',0,0,8,'計算エラー'); }
 
   // Safety filters
   if(t15==='不明'||t1==='不明')safety.push('上位足データ不足');
@@ -816,11 +822,10 @@ function analyze(){
 
   // Entry
   $('side').textContent=blocked?'WAIT':r.side;
-  $('sl').textContent=fmt(sl);
-  $('tp').textContent=fmt(tp);
-  $('rr').textContent=fmtN(rr,2);
-  $('slDist').textContent=fmt(slD);
-  $('tpDist').textContent=fmt(tpD);
+  if($('sl')) $('sl').textContent=fmt(sl);
+  if($('rr')) $('rr').textContent=fmtN(rr,2);
+  if($('slDist')) $('slDist').textContent=fmt(slD);
+  if($('tpDist')) $('tpDist').textContent=fmt(tpD);
 
   let exp=blocked
     ?`安全フィルター発動：${r.safety.join('、')}。見送り推奨。`
