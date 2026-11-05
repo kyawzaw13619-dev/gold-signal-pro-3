@@ -334,7 +334,7 @@ html.standalone body{padding-top:env(safe-area-inset-top)}
       <div class="metric"><span>距離 SL</span><b id="slDist">--</b></div>
       <div class="metric"><span>距離 TP</span><b id="tpDist">--</b></div>
     </div>
-    <p class="small" style="margin-top:10px">参考データは Binance Futures XAUUSDT（XAUUSDスポット連動）です。実ブローカーの価格・スプレッド・約定を必ず確認してください。売買推奨ではありません。</p>
+    <p class="small" style="margin-top:10px">参考データは Binance Futures XAUUSDT + オフセット（またはスポットAPI）です。実ブローカーの価格・スプレッド・約定を必ず確認してください。売買推奨ではありません。</p>
   </section>
 
   
@@ -509,6 +509,24 @@ function trendClass(t){
 }
 
 /* ===== Data ===== */
+// 価格調整設定（チャート側XAUUSDに近づける）
+const PRICE_OFFSET = 10; // 必要に応じて変更（例: 8〜12）
+let USE_SPOT_OVERRIDE = true; // trueにするとスポット価格で参考価格を上書き
+let spotPrice = null;
+
+async function fetchSpotPrice(){
+  try{
+    // 無料のXAUUSDスポットAPI（CORS対応のもの）
+    const r = await fetch('https://api.gold-api.com/price/XAU');
+    if(!r.ok) return null;
+    const data = await r.json();
+    return data.price || data.XAU || null;
+  }catch(e){
+    console.warn('Spot price fetch failed', e);
+    return null;
+  }
+}
+
 async function loadTf(interval,limit=120){
   // Binance Futures XAUUSDT (tracks XAUUSD spot closely, CORS friendly)
   const map = {
@@ -552,6 +570,10 @@ async function fetchData(){
   $('connection').textContent='取得中…';
   $('connPill').className='status-pill';
   try{
+    // スポット価格も並行取得（任意）
+    if(USE_SPOT_OVERRIDE){
+      spotPrice = await fetchSpotPrice();
+    }
     const [base,m15,h1,h4,d1]=await Promise.all([
       loadTf(tf,120),
       loadTf('15m',80),
@@ -564,7 +586,8 @@ async function fetchData(){
     analyze();
     $('connection').textContent='LIVE';
     $('connPill').className='status-pill live';
-    $('updated').textContent='最終更新：'+new Date().toLocaleString('ja-JP')+' ｜ Binance XAUUSDT';
+    const src = USE_SPOT_OVERRIDE && spotPrice ? 'Spot + Offset' : 'Binance XAUUSDT + Offset';
+    $('updated').textContent='最終更新：'+new Date().toLocaleString('ja-JP')+' ｜ '+src;
   }catch(e){
     $('connection').textContent='取得失敗';
     $('connPill').className='status-pill err';
@@ -849,11 +872,18 @@ function analyze(){
   $('signal').className='signal '+(signal.includes('BUY')?'buy':signal.includes('SELL')?'sell':'wait');
   $('score').textContent=r.score;
   $('direction').textContent=`BUY ${r.up}点 / SELL ${r.dn}点`;
-  $('price').textContent=fmt(r.price);
+  // 参考価格の調整（チャート側に近づける）
+  let displayPrice = r.price;
+  if(USE_SPOT_OVERRIDE && spotPrice){
+    displayPrice = spotPrice;
+  } else {
+    displayPrice = r.price + PRICE_OFFSET;
+  }
+  $('price').textContent=fmt(displayPrice);
   $('rsi').textContent=fmtN(r.rv,1);
   $('atr').textContent=fmt(r.av);
-  $('ema20').textContent=fmt(r.e20);
-  $('ema50').textContent=fmt(r.e50);
+  $('ema20').textContent=fmt(r.e20 + (displayPrice - r.price)); // EMAも軽く調整
+  $('ema50').textContent=fmt(r.e50 + (displayPrice - r.price));
   $('volRatio').textContent=fmtN(r.volR,2)+'x';
 
   // MTF chips
